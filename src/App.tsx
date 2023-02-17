@@ -34,13 +34,14 @@ function App() {
   const bind = useGesture(
     {
       onDrag: ({ offset: [x, y] }) =>
-        api({
-          dragX: x,
-          dragY: y,
+        api.start({
+          // keep dragging within bounds, only for zoom 1 for now...
+          dragX: zoom.get() > 1 ? x : dragX.get(),
+          dragY: zoom.get() > 1 ? y : dragY.get(),
           immediate: true,
         }),
-      onPinch: ({ offset: [d] }) => api({ zoom: d, immediate: true }),
-      onWheel: ({ event, offset: [, y] }) =>
+      onPinch: ({ offset: [d] }) => api.start({ zoom: d, immediate: true }),
+      onWheel: ({ event: _event, offset: [, y] }) =>
         api.start({ zoom: 1 + y * -0.01, immediate: true }),
     },
     {
@@ -63,13 +64,8 @@ function App() {
           <animated.div
             ref={gestureTargetRef}
             style={{
-              // keep dragging within bounds, only for zoom 1 for now...
-              translateX: to([dragX, zoom], (dragX, zoom) =>
-                zoom > 1 ? dragX : 0
-              ),
-              translateY: to([dragY, zoom], (dragY, zoom) =>
-                zoom > 1 ? dragY : 0
-              ),
+              translateX: dragX,
+              translateY: dragY,
               scale: zoom,
               touchAction: "none",
             }}
