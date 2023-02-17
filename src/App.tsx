@@ -8,13 +8,6 @@ import "./App.css";
 
 function App() {
   const gestureTargetRef = useRef(null);
-  // const [{ x, y }, api] = useSpring(() => ({ x: 0, y: 0 }))
-  // const [scale, setScale] = useState(1);
-  // const [movementX, setMovementX] = useState(0);
-  // const [movementY, setMovementY] = useState(0);
-  // const [dragX, setDragX] = useState(0);
-  // const [dragY, setDragY] = useState(0);
-  // const [pinch, setPinch] = useState(1);
 
   const [{ dragX, dragY, zoom }, api] = useSpring(() => ({
     dragX: 0,
@@ -52,15 +45,15 @@ function App() {
   return (
     <div className="App">
       <div>
-        <button onClick={zoomIn} type="button">
-          +
-        </button>
-        <button onClick={zoomOut} type="button">
-          -
-        </button>
-      </div>
-      <div>
         <div id="svg-wrapper">
+          <div className="svg-wrapper-overlay">
+            <button onClick={zoomIn} type="button">
+              +
+            </button>
+            <button onClick={zoomOut} type="button">
+              -
+            </button>
+          </div>
           <animated.div
             ref={gestureTargetRef}
             style={{

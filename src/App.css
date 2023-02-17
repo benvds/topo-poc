@@ -8,3 +8,18 @@
 .App {
   width: 100dvw;
 }
+
+#svg-wrapper {
+  position: relative;
+  z-index: 0;
+}
+
+.svg-wrapper-overlay {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  top: 20px;
+  left: 20px;
+}
