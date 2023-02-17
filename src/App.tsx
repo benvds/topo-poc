@@ -1,61 +1,52 @@
 import { useCallback, useRef, useState } from "react";
 // @ts-ignore
 import { ReactComponent as Map } from "./assets/map.svg";
-import { useGesture } from "@use-gesture/react";
+import { useGesture, useDrag } from "@use-gesture/react";
+import { useSpring, animated, to } from "@react-spring/web";
 
 import "./App.css";
 
 function App() {
   const gestureTargetRef = useRef(null);
-  const [scale, setScale] = useState(1);
-  const [movementX, setMovementX] = useState(0);
-  const [movementY, setMovementY] = useState(0);
-  const [dragX, setDragX] = useState(0);
-  const [dragY, setDragY] = useState(0);
-  const [pinch, setPinch] = useState(1);
+  // const [{ x, y }, api] = useSpring(() => ({ x: 0, y: 0 }))
+  // const [scale, setScale] = useState(1);
+  // const [movementX, setMovementX] = useState(0);
+  // const [movementY, setMovementY] = useState(0);
+  // const [dragX, setDragX] = useState(0);
+  // const [dragY, setDragY] = useState(0);
+  // const [pinch, setPinch] = useState(1);
 
-  const zoomIn = useCallback(() => setScale((prev) => prev + 1), [setScale]);
-  const zoomOut = useCallback(() => setScale((prev) => prev - 1), [setScale]);
+  const [{ dragX, dragY, zoom }, api] = useSpring(() => ({
+    dragX: 0,
+    dragY: 0,
+    zoom: 1,
+  }));
 
-  // Set the drag hook and define component movement based on gesture data
+  const zoomIn = useCallback(
+    () => api.start({ zoom: zoom.get() + 1 }),
+    [zoom, api]
+  );
+  const zoomOut = useCallback(
+    () => api.start({ zoom: zoom.get() < 2 ? 1 : zoom.get() - 1 }),
+    [zoom, api]
+  );
+
   const bind = useGesture(
     {
-      onDrag: ({ movement: [mx, my] }) => {
-        setDragX(mx);
-        setDragY(my);
-        // setTranslateX((prev) => prev + mx);
-        // setTranslateY((prev) => prev + my);
-        // api.start({ x: down ? mx : 0, y: down ? my : 0, immediate: down });
-      },
-      onDragEnd: ({ movement: [mx, my] }) => {
-        setDragX(0);
-        setDragY(0);
-        setMovementX((prev) => prev + mx);
-        setMovementY((prev) => prev + my);
-      },
-      onPinch: ({ offset }) => {
-        setPinch(offset[0] / scale);
-      },
-      onPinchEnd: ({ offset }) => {
-        setPinch(1);
-        setScale((prev) => {
-          console.debug("pinch end", prev * (offset[0] / prev));
-          return prev * (offset[0] / prev);
-        });
-      },
+      onDrag: ({ offset: [x, y] }) =>
+        api({
+          dragX: x,
+          dragY: y,
+          immediate: true,
+        }),
+      onPinch: ({ offset: [d] }) => api({ zoom: d, immediate: true }),
+      onWheel: ({ event, offset: [, y] }) =>
+        api.start({ zoom: 1 + y * -0.01, immediate: true }),
     },
     {
       target: gestureTargetRef,
     }
   );
-
-  const mapStyles = {
-    touchAction: "none",
-    // transform: `scale(${zoom}, ${zoom})`,
-    // transform: `matrix3d(${zoom}, 0, 0, 0, 0, ${zoom}, 0, 0, 0, 0, 1, 0, ${transformX}, ${transformY}, 0, 1)`, // blurry on safari
-    transform: `matrix(${scale * pinch}, 0, 0, ${scale * pinch}, ${movementX + dragX
-      }, ${movementY + dragY})`,
-  };
 
   return (
     <div className="App">
@@ -69,10 +60,22 @@ function App() {
       </div>
       <div>
         <div id="svg-wrapper">
-          {/* <img src={mapSvg} className="map-image" alt="map" style={mapStyles} /> */}
-          <div ref={gestureTargetRef} style={mapStyles}>
+          <animated.div
+            ref={gestureTargetRef}
+            style={{
+              // keep dragging within bounds, only for zoom 1 for now...
+              translateX: to([dragX, zoom], (dragX, zoom) =>
+                zoom > 1 ? dragX : 0
+              ),
+              translateY: to([dragY, zoom], (dragY, zoom) =>
+                zoom > 1 ? dragY : 0
+              ),
+              scale: zoom,
+              touchAction: "none",
+            }}
+          >
             <Map />
-          </div>
+          </animated.div>
         </div>
       </div>
     </div>
