@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+// @ts-ignore
 import { ReactComponent as Map } from "./assets/map.svg";
 import { useGesture } from "@use-gesture/react";
 
