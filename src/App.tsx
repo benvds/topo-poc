@@ -21,8 +21,8 @@ const getTransform = (
   const wbounds = wrapper.getBoundingClientRect();
   const cbounds = content.getBoundingClientRect();
 
-  console.debug("wbounds", wbounds);
-  console.debug("cbounds", cbounds);
+  // console.debug("wbounds", wbounds);
+  // console.debug("cbounds", cbounds);
 
   const sw = wbounds.width / cbounds.width;
   const sh = wbounds.height / cbounds.height;
@@ -42,7 +42,7 @@ const handleZoomChange = () => {
     document.querySelector("#svg-wrapper"),
     document.querySelector("#map-container")
   );
-  console.debug("onTransform", transform);
+  // console.debug("onTransform", transform);
 
   const el = document.querySelector(".mini-map-overlay");
 
@@ -61,6 +61,7 @@ const handleZoomChange = () => {
 
 function App() {
   const gestureTargetRef = useRef(null);
+  const svgWrapperRef = useRef<HTMLDivElement>(null);
 
   const svg = useMemo(() => svgMap, []);
 
@@ -81,17 +82,69 @@ function App() {
     setTimeout(handleZoomChange, zoomDuration);
   }, [zoom, api]);
 
+  // clamp offset x within bounds of the wrapper
+  const clampY = (offsetY: number, lastOffsetY: number) => {
+    const viewWrapper = document.querySelector("#svg-wrapper");
+    const mapContainer = document.querySelector("#map-container");
+
+    if (!viewWrapper || !mapContainer) {
+      return offsetY;
+    }
+
+    const viewHeight = viewWrapper.getBoundingClientRect().height;
+    const mapHeight = mapContainer.getBoundingClientRect().height;
+
+    if (viewHeight > mapHeight) {
+      return offsetY;
+    }
+
+    const viewDiff = mapHeight - viewHeight;
+
+    const offsetDiff = offsetY - lastOffsetY;
+    const update = lastOffsetY + offsetDiff;
+
+    const max = viewDiff;
+    const min = -1 * viewDiff;
+
+    console.group("clampY");
+    {
+      console.debug("dragY", dragY.get());
+      console.debug("offsetY", offsetY);
+      console.debug("lastOffsetY", lastOffsetY);
+      console.debug("offsetDiff", offsetDiff);
+      console.debug("update", update);
+      // console.debug("max", max);
+      // console.debug("min", min);
+    }
+    console.groupEnd();
+
+    if (update < min) {
+      return min;
+    } else if (update > max) {
+      return max;
+    } else {
+      return update;
+    }
+  };
+
+  const handleDrag = ({ offset, lastOffset }) => {
+    // console.debug("offset", offset);
+    // console.debug("lastOffset", lastOffset);
+    api.start({
+      // keep dragging within bounds, only for zoom 1 for now...
+      // bounds = map width - wrapper width
+      dragX: zoom.get() > 1 ? offset[0] : dragX.get(),
+      // dragY: clampY(offset[1], lastOffset[1]),
+      dragY: offset[1],
+      immediate: true,
+      onResolve: handleZoomChange,
+    });
+  };
+
+  useDrag(handleDrag, { bounds: svgWrapperRef, target: gestureTargetRef });
+
   useGesture(
     {
-      onDrag: ({ offset: [x, y] }) =>
-        api.start({
-          // keep dragging within bounds, only for zoom 1 for now...
-          // bounds = map width - wrapper width
-          dragX: zoom.get() > 1 ? x : dragX.get(),
-          dragY: zoom.get() > 1 ? y : dragY.get(),
-          immediate: true,
-          onResolve: handleZoomChange,
-        }),
       onPinch: ({ offset: [d] }) =>
         api.start({ zoom: d, immediate: true, onResolve: handleZoomChange }),
       onWheel: ({ event: _event, offset: [, y] }) => {
@@ -112,7 +165,7 @@ function App() {
   return (
     <div className="App">
       <div>
-        <div id="svg-wrapper">
+        <div ref={svgWrapperRef} id="svg-wrapper">
           <div className="svg-wrapper-overlay">
             <div className="mini-map">
               <img id="mini-map-canvas" src={svgMap} width="170" height="127" />
