@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 // @ts-ignore
 import svgMap, { ReactComponent as Map } from "./assets/map.svg";
 import { useGesture, useDrag } from "@use-gesture/react";
 import { useSpring, animated, to } from "@react-spring/web";
 
 import "./App.css";
+
+// a memoize function
 
 const getTransform = (
   wrapper: HTMLDivElement | null,
@@ -65,6 +67,7 @@ function App() {
 
   const svg = useMemo(() => svgMap, []);
 
+  const dragYCache = useRef(0).current;
   const [{ dragX, dragY, zoom }, api] = useSpring(() => ({
     dragX: 0,
     dragY: 0,
@@ -82,66 +85,50 @@ function App() {
     setTimeout(handleZoomChange, zoomDuration);
   }, [zoom, api]);
 
-  // clamp offset x within bounds of the wrapper
-  const clampY = (offsetY: number, lastOffsetY: number) => {
+  const getDiff = () => {
     const viewWrapper = document.querySelector("#svg-wrapper");
     const mapContainer = document.querySelector("#map-container");
 
     if (!viewWrapper || !mapContainer) {
-      return offsetY;
+      return 0;
     }
 
     const viewHeight = viewWrapper.getBoundingClientRect().height;
     const mapHeight = mapContainer.getBoundingClientRect().height;
 
     if (viewHeight > mapHeight) {
-      return offsetY;
+      return 0;
     }
 
-    const viewDiff = mapHeight - viewHeight;
+    return mapHeight - viewHeight;
+  }
 
-    const offsetDiff = offsetY - lastOffsetY;
-    const update = lastOffsetY + offsetDiff;
+  // clamp offset x within bounds of the wrapper
+  const clampY = (offset: number) => {
+    const diff = getDiff();
+    const tooLow = offset < -1 * diff;
+    const tooHigh = offset > 0;
 
-    const max = viewDiff;
-    const min = -1 * viewDiff;
-
-    console.group("clampY");
-    {
-      console.debug("dragY", dragY.get());
-      console.debug("offsetY", offsetY);
-      console.debug("lastOffsetY", lastOffsetY);
-      console.debug("offsetDiff", offsetDiff);
-      console.debug("update", update);
-      // console.debug("max", max);
-      // console.debug("min", min);
-    }
-    console.groupEnd();
-
-    if (update < min) {
-      return min;
-    } else if (update > max) {
-      return max;
+    if (tooLow) {
+      return -1 * diff;
+    } else if (tooHigh) {
+      return 0;
     } else {
-      return update;
+      return offset;
     }
   };
 
-  const handleDrag = ({ offset, lastOffset }) => {
-    // console.debug("offset", offset);
-    // console.debug("lastOffset", lastOffset);
-    api.start({
-      // keep dragging within bounds, only for zoom 1 for now...
-      // bounds = map width - wrapper width
-      dragX: zoom.get() > 1 ? offset[0] : dragX.get(),
-      // dragY: clampY(offset[1], lastOffset[1]),
-      dragY: offset[1],
-      immediate: true,
-      onResolve: handleZoomChange,
-    });
-  };
-
-  useDrag(handleDrag, { bounds: svgWrapperRef, target: gestureTargetRef });
+  useDrag(({ offset, lastOffset }) => {
+        // console.debug("delta", delta);
+        console.debug("offset", offset[1]);
+        console.debug("lastOffset", lastOffset[1]);
+        api.start({
+          dragX: zoom.get() > 1 ? offset[0] : dragX.get(),
+          dragY: clampY(offset[1]),
+          immediate: true,
+          onResolve: handleZoomChange,
+        });
+      }, { target: gestureTargetRef, axis: 'y', from: () => [0, clampY(dragY.get())] });
 
   useGesture(
     {
